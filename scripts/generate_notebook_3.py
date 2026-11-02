@@ -329,17 +329,17 @@ print(f"Saved confusion matrices to: {cm_path}")
     cells.append(nbf.v4.new_markdown_cell("""### 5. Association Rule Mining: Apriori vs. FP-Growth
 
 #### Feature Discretization:
-- `age`: `Young (<30)`, `Middle-Aged (30-49)`, `Senior (50+)`
-- `hours-per-week`: `Part-Time (<35)`, `Full-Time (35-40)`, `Over-Time (>40)`
-- `capital-gain`: `None ($0)`, `Moderate ($1-$5000)`, `High (>$5000)`
+- `age`: `Young (<30)`, `Middle-Aged (30-50)`, `Senior (>50)`
+- `hours-per-week`: `Part-Time (<35)`, `Full-Time (35-45)`, `Over-Time (>45)`
+- `capital-gain`: `Zero ($0)`, `Non-Zero (>$0)`
 - `education-num`: `Basic (<9)`, `Secondary/College (9-12)`, `Higher-Edu (>12)`
 """))
 
     cells.append(nbf.v4.new_code_cell("""# Build transaction matrix
 tx_data = pd.DataFrame()
-tx_data['Age'] = pd.cut(train_df['age'], bins=[0, 29, 49, 120], labels=['Age:<30', 'Age:30-49', 'Age:50+'])
-tx_data['Hours'] = pd.cut(train_df['hours-per-week'], bins=[0, 34, 40, 120], labels=['Hours:PartTime', 'Hours:FullTime', 'Hours:OverTime'])
-tx_data['CapGain'] = train_df['capital-gain'].apply(lambda x: 'CapGain:High' if x > 5000 else ('CapGain:Mod' if x > 0 else 'CapGain:None'))
+tx_data['Age'] = pd.cut(train_df['age'], bins=[0, 29, 50, 120], labels=['Age:<30', 'Age:30-50', 'Age:>50'])
+tx_data['Hours'] = pd.cut(train_df['hours-per-week'], bins=[0, 34, 45, 120], labels=['Hours:<35', 'Hours:35-45', 'Hours:>45'])
+tx_data['CapGain'] = train_df['capital-gain'].apply(lambda x: 'CapGain:NonZero' if x > 0 else 'CapGain:Zero')
 tx_data['Edu'] = pd.cut(train_df['education-num'], bins=[0, 8, 12, 16], labels=['Edu:Basic', 'Edu:Mid', 'Edu:High'])
 tx_data['Marital'] = train_df['marital-status'].apply(lambda x: 'Married' if 'Married' in str(x) else 'NotMarried')
 tx_data['Relationship'] = train_df['relationship']
@@ -377,23 +377,33 @@ print(f"FP-Growth Speedup : {speedup:.2f}x faster than Apriori")
 """))
 
     # Cell 12: Association Rule Extraction & Analysis
-    cells.append(nbf.v4.new_code_cell("""# Extract association rules with confidence threshold >= 0.50
-rules = association_rules(freq_fpgrowth, metric='confidence', min_threshold=0.50)
+    cells.append(nbf.v4.new_code_cell("""# Extract association rules with assignment required minimum confidence >= 0.70
+rules = association_rules(freq_fpgrowth, metric='confidence', min_threshold=0.70)
+
+# Filter rules with lift > 1.2
+high_lift_rules = rules[rules['lift'] > 1.2].copy()
 
 # Filter rules with income as consequent
-rules['target_rule'] = rules['consequents'].apply(
+high_lift_rules['target_rule'] = high_lift_rules['consequents'].apply(
     lambda s: any(x in ['<=50K', '>50K'] for x in s)
 )
-income_rules = rules[rules['target_rule']].copy()
+income_rules = high_lift_rules[high_lift_rules['target_rule']].copy()
 
 income_rules['antecedents_str'] = income_rules['antecedents'].apply(lambda x: ', '.join(list(x)))
 income_rules['consequents_str'] = income_rules['consequents'].apply(lambda x: ', '.join(list(x)))
 
+print(f"Total rules extracted at confidence >= 0.70: {len(rules):,}")
+print(f"Rules with lift > 1.2: {len(high_lift_rules):,}")
+print(f"Income-target rules with confidence >= 0.70 and lift > 1.2: {len(income_rules):,}")
+
 top_high_income = income_rules[income_rules['consequents_str'] == '>50K'].sort_values(by='lift', ascending=False)
 top_low_income = income_rules[income_rules['consequents_str'] == '<=50K'].sort_values(by='lift', ascending=False)
 
-print("Top 5 Association Rules for High-Income (>50K) sorted by Lift:")
-display(top_high_income[['antecedents_str', 'consequents_str', 'support', 'confidence', 'lift']].head(5).round(3))
+if len(top_high_income) > 0:
+    print("\\nTop Association Rules for High-Income (>50K) sorted by Lift:")
+    display(top_high_income[['antecedents_str', 'consequents_str', 'support', 'confidence', 'lift']].head(5).round(3))
+else:
+    print("\\n(Note: No rules with consequent >50K satisfied simultaneous support >= 10%, confidence >= 70%, and lift > 1.2 due to minority class baseline prevalence of 24.1%)")
 
 print("\\nTop 5 Association Rules for Low-Income (<=50K) sorted by Lift:")
 display(top_low_income[['antecedents_str', 'consequents_str', 'support', 'confidence', 'lift']].head(5).round(3))

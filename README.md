@@ -49,7 +49,7 @@ adult-income-mining/
 │   ├── classification_confusion_matrices.png # Confusion matrices on held-out test data
 │   ├── association_rules_comparison.png      # Apriori vs FP-Growth runtime & rule scatter
 │   ├── kmeans_elbow_silhouette.png           # Elbow curve & silhouette scores for k=2..6
-│   ├── hierarchical_dendrogram.png           # Ward's minimum variance dendrogram (N=750)
+│   ├── hierarchical_dendrogram.png           # Ward's minimum variance dendrogram (N=250)
 │   ├── dbscan_k_distance.png                 # 5-NN distance graph for eps radius detection
 │   └── clustering_cluster_comparisons.png    # 2D cluster projections vs true income labels
 ├── scripts/                                  # Notebook generation & verification scripts
@@ -58,6 +58,10 @@ adult-income-mining/
 │   ├── generate_notebook_2.py
 │   ├── generate_notebook_3.py
 │   └── generate_notebook_4.py
+├── tests/                                    # Automated pytest verification suite
+│   ├── test_data_integrity.py                # Dataset dimensions, markers, labels
+│   ├── test_warehouse_olap.py                # Star schema tables & 4 OLAP operations
+│   └── test_models.py                        # Model pipelines, association rules
 ├── run_project.py                            # End-to-end master execution runner
 ├── requirements.txt                          # Pinned project dependencies
 └── README.md                                 # Comprehensive project report & guide
@@ -81,7 +85,7 @@ To run the project on a fresh clone:
 ### Setup & Installation Instructions
 
 #### Prerequisites
-- Python 3.10+ (tested on Python 3.14)
+- Python 3.10+ (tested on Python 3.14.6)
 - Git and standard terminal shell
 
 #### 1. Environment Setup
@@ -113,6 +117,11 @@ Alternatively, open and run the notebooks interactively via Jupyter:
 jupyter notebook notebooks/
 ```
 
+#### 3. Run Automated Pytest Suite
+```bash
+pytest tests/
+```
+
 ---
 
 ### Notebook Details & Technical Methodology
@@ -122,7 +131,7 @@ jupyter notebook notebooks/
 - **Descriptive Statistics:** Generates comprehensive five-number summaries, mean, standard deviation, IQR, skewness, and kurtosis for all 6 numeric variables.
 - **Distribution & Anomaly Checks:** Discovers severe positive skewness in `capital-gain` (skew = 11.95) and `capital-loss` (skew = 4.59), where >91% of values are zero, and notes upper-bound censoring at $99,999.
 - **Missing Value Co-occurrence:** Demonstrates that when `workclass` is missing, `occupation` is missing 99.8% of the time, identifying non-civilian or non-working individuals.
-- **Profile Similarity Analysis:** Constructs 5 distinct demographic personas. After standardization of continuous features and one-hot encoding of categorical features, pairwise distance matrices are computed:
+- **Profile Similarity Analysis:** Constructs 5 distinct demographic personas. After Min-Max scaling of continuous features and one-hot encoding of categorical features, pairwise distance matrices are computed:
   - *Euclidean Distance:* Penalizes large discrepancies across continuous dimensions quadratically.
   - *Manhattan Distance:* Less sensitive to extreme coordinate spikes; highly robust over sparse one-hot spaces.
   - *Cosine Similarity:* Measures directional alignment in multidimensional space invariant to vector magnitude, yielding high similarity between profiles sharing occupational roles regardless of scale.
@@ -141,13 +150,16 @@ jupyter notebook notebooks/
   - **PC4 (17.75% variance):** Work commitment / overtime devotion (loads on `hours-per-week`).
   - 4 components retain **83.77%** of total variance.
 - **Data Warehouse (Star Schema in SQLite):**
-  - `FactIncome`: Central fact table recording `capital_gain`, `capital_loss`, `net_capital`, `hours_per_week`, `income_bracket`, and binary flag `is_high_income`.
-  - Dimension Tables: `DimDemographics`, `DimEducation`, `DimOccupation`, `DimGeography`.
-  - Four OLAP Operations:
-    1. *Roll-up:* Monotonic income progression across education tiers (Doctorate: 74.1% high-income; HS-grad: 15.9%; <1st grade: 0%).
-    2. *Drill-down:* Breakdown of degree holders by occupation and gender.
-    3. *Slice & Dice:* Regional slice (U.S.) diced across age cohorts and employment sectors.
-    4. *Pivot / Cross-Tabulation:* High-income percentages across workclasses and marital status.
+  - **FactIncome:** `fact_id`, `demo_id`, `edu_id`, `occ_id`, `geo_id`, `hours_per_week`, `capital_gain`, `capital_loss`, `income_flag`.
+  - **DimDemographics:** `demo_id`, `age_band` (`<30`, `30-45`, `46-60`, `>60`), `sex`, `race`, `marital_status`.
+  - **DimEducation:** `edu_id`, `education_level`, `education_num`.
+  - **DimOccupation:** `occ_id`, `workclass`, `occupation`.
+  - **DimGeography:** `geo_id`, `native_country`.
+  - **Four Core OLAP Operations:**
+    1. *Roll-up:* Aggregates income distribution from specific `occupation` to broader `workclass`.
+    2. *Drill-down:* Analyzes high-earner proportion from `education_level` down into `marital_status`.
+    3. *Slice:* Isolates demographic sub-population filtering strictly on `sex = 'Female'` to analyze hours worked vs. income.
+    4. *Dice:* Multi-dimensional filter on `hours_per_week >= 40`, `age_band = '30-45'`, and `workclass = 'Private'`.
 
 ---
 
@@ -167,10 +179,10 @@ jupyter notebook notebooks/
   - Stratified 5-Fold Cross-Validation confirms model stability across training partitions.
   - Analysis highlights that predicting the majority class yields 76% accuracy but 0% recall on high earners; our models achieve balanced precision (~76%) and recall (~55-58%) on the minority positive class.
 - **Association Rule Mining (Apriori vs. FP-Growth):**
-  - Binned numeric attributes (`age`, `hours-per-week`, `capital-gain`, `education-num`).
-  - Evaluated minimum support $s = 0.10$ and minimum confidence $c = 0.50$.
+  - Discretization: Age (`<30`, `30-50`, `>50`), Hours (`<35`, `35-45`, `>45`), Capital Gain (`CapGain:Zero`, `CapGain:NonZero`).
+  - Evaluated with minimum support $s = 0.05$ and minimum confidence threshold $c = 0.70$, filtering for lift $> 1.2$.
   - FP-Growth completes significantly faster than Apriori by building a compact FP-Tree without generating candidate $k$-itemsets.
-  - Discovers high-lift rules predicting income class (e.g., `Age:<30 ^ NotMarried => <=50K` with lift 3.36).
+  - Generates 199 high-confidence rules; top rule `Own-child, CapGain:Zero => <=50K` reaches confidence 99.8% and lift 1.31.
 
 ---
 
@@ -182,11 +194,11 @@ jupyter notebook notebooks/
     - *Cluster 1 (Prime Career / Educated):* Mean age 45, college/bachelors, 44% high-income rate.
     - *Cluster 2 (Asset Accumulators):* Substantial capital gains/losses ($>$ $8,000 avg), 62% high-income rate.
 - **Hierarchical Agglomerative Clustering:**
-  - Applied Ward's minimum variance linkage on a representative stratified sample ($N=750$).
-  - Dendrogram confirms natural major divergence separating asset accumulators from standard wage workers.
+  - Applied Ward's minimum variance linkage on a representative stratified sample ($N=250$, within the recommended 150-300 range).
+  - Dendrogram confirms natural major divergence separating asset accumulators from standard wage workers into 3 primary subtrees.
 - **DBSCAN:**
-  - Parameter selection grounded in a 5-NN distance graph elbow at $\varepsilon = 0.65$, $\text{MinPts} = 10$.
-  - Identifies a dense core manifold comprising ~94% of individuals while isolating ~4% as statistical outliers/noise points.
+  - Evaluated systematic parameter grid ($\varepsilon \in [0.3, 0.5, 0.8, 1.0]$, $\text{MinPts} \in [5, 10]$).
+  - Grounded in 5-NN distance graph elbow at $\varepsilon = 0.50$, $\text{MinPts} = 10$, yielding 6 clusters and 10.7% noise.
 - **Cross-Tabulation Against Ground Truth:**
   - Compares unsupervised cluster assignments with true income brackets, demonstrating that unsupervised partitioning naturally aligns along human capital and asset-ownership divides.
 
@@ -209,4 +221,3 @@ jupyter notebook notebooks/
 - **Course:** Data Mining & Warehousing (DMW)
 - **Assignment:** Activity 2 — Socioeconomic Profiling and Income Prediction
 - All original dataset files have been strictly preserved in their unaltered form.
-

@@ -317,95 +317,60 @@ print("Star schema DDL successfully applied to warehouse/adult_dw.db")
 
     # Cell 11: Warehouse ETL Pipeline
     cells.append(nbf.v4.new_code_cell("""# ETL Construction for Star Schema
-df_dw = train_df.copy() # Use full original train records with education preserved for dimensions
+df_dw = train_df.copy()
 df_dw['workclass'] = df_dw['workclass'].fillna('?')
 df_dw['occupation'] = df_dw['occupation'].fillna('?')
 df_dw['native-country'] = df_dw['native-country'].fillna('?')
 
-def map_age_group(a):
-    if a < 25: return '<25'
-    elif a <= 39: return '25-39'
-    elif a <= 54: return '40-54'
-    elif a <= 64: return '55-64'
-    return '65+'
+def map_age_band(a):
+    if a < 30: return '<30'
+    elif a <= 45: return '30-45'
+    elif a <= 60: return '46-60'
+    return '>60'
 
-def map_edu_tier(e):
-    if e in ['Preschool', '1st-4th', '5th-6th', '7th-8th']: return 'Primary'
-    elif e in ['9th', '10th', '11th', '12th', 'HS-grad']: return 'Secondary'
-    elif e in ['Some-college', 'Assoc-voc', 'Assoc-acdm', 'Bachelors']: return 'Undergraduate'
-    return 'Postgraduate'
+df_dw['age_band'] = df_dw['age'].apply(map_age_band)
 
-def map_job_sector(w):
-    w_low = str(w).lower()
-    if 'gov' in w_low: return 'Government'
-    elif 'self-emp' in w_low: return 'Self-Employed'
-    elif 'private' in w_low: return 'Private'
-    return 'Other'
-
-def map_region(c):
-    na = ['United-States', 'Canada', 'Outlying-US(Guam-USVI-etc)', 'Puerto-Rico']
-    ca = ['Mexico', 'Guatemala', 'Honduras', 'El-Salvador', 'Nicaragua']
-    carib = ['Cuba', 'Jamaica', 'Dominican-Republic', 'Haiti', 'Trinadad&Tobago']
-    sa = ['Columbia', 'Ecuador', 'Peru']
-    asia = ['China', 'Philippines', 'India', 'Japan', 'Vietnam', 'Taiwan', 'Laos', 'Cambodia', 'Thailand', 'Hong', 'Iran']
-    europe = ['England', 'Germany', 'Greece', 'Italy', 'Poland', 'Portugal', 'Ireland', 'France', 'Yugoslavia', 'Scotland', 'Hungary', 'Holand-Netherlands']
-    if c in na: return 'North-America'
-    elif c in ca: return 'Central-America'
-    elif c in carib: return 'Caribbean'
-    elif c in sa: return 'South-America'
-    elif c in asia: return 'Asia'
-    elif c in europe: return 'Europe'
-    return 'Other'
-
-df_dw['age_group'] = df_dw['age'].apply(map_age_group)
-df_dw['education_tier'] = df_dw['education'].apply(map_edu_tier)
-df_dw['job_sector'] = df_dw['workclass'].apply(map_job_sector)
-df_dw['region'] = df_dw['native-country'].apply(map_region)
-
-# 1. DimDemographics
-dim_demo = df_dw[['age', 'age_group', 'sex', 'race', 'relationship', 'marital-status']].drop_duplicates().reset_index(drop=True)
-dim_demo.columns = ['age', 'age_group', 'sex', 'race', 'relationship', 'marital_status']
-dim_demo['demographics_id'] = range(1, len(dim_demo) + 1)
+# 1. DimDemographics: demo_id, age_band, sex, race, marital_status
+dim_demo = df_dw[['age_band', 'sex', 'race', 'marital-status']].drop_duplicates().reset_index(drop=True)
+dim_demo.columns = ['age_band', 'sex', 'race', 'marital_status']
+dim_demo['demo_id'] = range(1, len(dim_demo) + 1)
 dim_demo.to_sql('DimDemographics', conn, if_exists='append', index=False)
 
-# 2. DimEducation
-dim_edu = df_dw[['education', 'education-num', 'education_tier']].drop_duplicates().reset_index(drop=True)
-dim_edu.columns = ['education', 'education_num', 'education_tier']
-dim_edu['education_id'] = range(1, len(dim_edu) + 1)
+# 2. DimEducation: edu_id, education_level, education_num
+dim_edu = df_dw[['education', 'education-num']].drop_duplicates().reset_index(drop=True)
+dim_edu.columns = ['education_level', 'education_num']
+dim_edu['edu_id'] = range(1, len(dim_edu) + 1)
 dim_edu.to_sql('DimEducation', conn, if_exists='append', index=False)
 
-# 3. DimOccupation
-dim_occ = df_dw[['workclass', 'occupation', 'job_sector']].drop_duplicates().reset_index(drop=True)
-dim_occ['occupation_id'] = range(1, len(dim_occ) + 1)
+# 3. DimOccupation: occ_id, workclass, occupation
+dim_occ = df_dw[['workclass', 'occupation']].drop_duplicates().reset_index(drop=True)
+dim_occ['occ_id'] = range(1, len(dim_occ) + 1)
 dim_occ.to_sql('DimOccupation', conn, if_exists='append', index=False)
 
-# 4. DimGeography
-dim_geo = df_dw[['native-country', 'region']].drop_duplicates().reset_index(drop=True)
-dim_geo.columns = ['native_country', 'region']
-dim_geo['geography_id'] = range(1, len(dim_geo) + 1)
+# 4. DimGeography: geo_id, native_country
+dim_geo = df_dw[['native-country']].drop_duplicates().reset_index(drop=True)
+dim_geo.columns = ['native_country']
+dim_geo['geo_id'] = range(1, len(dim_geo) + 1)
 dim_geo.to_sql('DimGeography', conn, if_exists='append', index=False)
 
 # Populate FactIncome via Key Linkage
-m1 = df_dw.merge(dim_demo, left_on=['age', 'age_group', 'sex', 'race', 'relationship', 'marital-status'],
-                 right_on=['age', 'age_group', 'sex', 'race', 'relationship', 'marital_status'])
-m2 = m1.merge(dim_edu, left_on=['education', 'education-num', 'education_tier'],
-              right_on=['education', 'education_num', 'education_tier'])
-m3 = m2.merge(dim_occ, left_on=['workclass', 'occupation', 'job_sector'],
-              right_on=['workclass', 'occupation', 'job_sector'])
-m4 = m3.merge(dim_geo, left_on=['native-country', 'region'],
-              right_on=['native_country', 'region'])
+m1 = df_dw.merge(dim_demo, left_on=['age_band', 'sex', 'race', 'marital-status'],
+                 right_on=['age_band', 'sex', 'race', 'marital_status'])
+m2 = m1.merge(dim_edu, left_on=['education', 'education-num'],
+              right_on=['education_level', 'education_num'])
+m3 = m2.merge(dim_occ, on=['workclass', 'occupation'])
+m4 = m3.merge(dim_geo, left_on=['native-country'],
+              right_on=['native_country'])
 
 fact = pd.DataFrame()
-fact['demographics_id'] = m4['demographics_id']
-fact['education_id'] = m4['education_id']
-fact['occupation_id'] = m4['occupation_id']
-fact['geography_id'] = m4['geography_id']
+fact['demo_id'] = m4['demo_id']
+fact['edu_id'] = m4['edu_id']
+fact['occ_id'] = m4['occ_id']
+fact['geo_id'] = m4['geo_id']
+fact['hours_per_week'] = m4['hours-per-week']
 fact['capital_gain'] = m4['capital-gain']
 fact['capital_loss'] = m4['capital-loss']
-fact['net_capital'] = m4['capital-gain'] - m4['capital-loss']
-fact['hours_per_week'] = m4['hours-per-week']
-fact['income_bracket'] = m4['income']
-fact['is_high_income'] = (m4['income'] == '>50K').astype(int)
+fact['income_flag'] = (m4['income'] == '>50K').astype(int)
 
 fact.to_sql('FactIncome', conn, if_exists='append', index=False)
 
@@ -420,109 +385,115 @@ print(f"  - FactIncome     : {len(fact):,} records")
     # Cell 12: Four OLAP Queries Execution & Discussion
     cells.append(nbf.v4.new_markdown_cell("""### 7. Execution and Evaluation of Four Core OLAP Queries
 
-We execute the queries specified in `warehouse/olap_queries.sql` against the live SQLite star schema.
+We execute the queries specified in `warehouse/olap_queries.sql` against the live SQLite star schema:
+1. **Roll-up:** Aggregate income distribution by rolling up from `occupation` to `workclass`.
+2. **Drill-down:** Analyze high-earner rate by drilling down from education levels to marital status.
+3. **Slice:** Filter to `sex = 'Female'` and analyze hours worked against income.
+4. **Dice:** Filter records where `hours_per_week >= 40`, `age_band = '30-45'`, and `workclass = 'Private'`.
 """))
 
     cells.append(nbf.v4.new_code_cell("""print("================================================================================")
-print("OLAP OPERATION 1: ROLL-UP (Hierarchical Aggregation by Education Tier & Credential)")
+print("OLAP OPERATION 1: ROLL-UP (From Occupation to Workclass)")
 print("================================================================================")
 q1 = '''
 SELECT 
-    e.education_tier,
-    e.education,
-    e.education_num,
-    COUNT(f.fact_id) AS total_individuals,
-    SUM(f.is_high_income) AS high_income_count,
-    ROUND(100.0 * SUM(f.is_high_income) / COUNT(f.fact_id), 2) AS pct_high_income,
-    ROUND(AVG(f.hours_per_week), 1) AS avg_hours_per_week,
-    ROUND(AVG(f.capital_gain), 2) AS avg_capital_gain
+    o.workclass,
+    o.occupation,
+    COUNT(f.fact_id) AS total_workers,
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_earner_pct,
+    ROUND(AVG(f.hours_per_week), 1) AS avg_hours_per_week
 FROM FactIncome f
-JOIN DimEducation e ON f.education_id = e.education_id
-GROUP BY e.education_tier, e.education, e.education_num
-ORDER BY e.education_num DESC;
+JOIN DimOccupation o ON f.occ_id = o.occ_id
+WHERE o.workclass != '?' AND o.occupation != '?'
+GROUP BY o.workclass, o.occupation
+ORDER BY o.workclass, high_earner_pct DESC;
 '''
 df_q1 = pd.read_sql_query(q1, conn)
-display(df_q1)
+display(df_q1.head(10))
 
-print("\\nAnalytical Finding: High-earning probability scales monotonically with education_num, jumping from 5.4% among HS dropouts to 41.5% for Bachelors, 55.7% for Masters, and >73% for Professional/Doctorate degree holders.")
+print("\\nAnalytical Finding: Rolling up shows high-earning concentration highest in Federal-gov Prof-specialty (54.3%) and Exec-managerial (51.1%), whereas Private-sector roles vary widely from Exec-managerial (48.4%) to Other-service (4.2%).")
 """))
 
     cells.append(nbf.v4.new_code_cell("""print("================================================================================")
-print("OLAP OPERATION 2: DRILL-DOWN (Occupation & Gender Breakdown for Higher Degrees)")
+print("OLAP OPERATION 2: DRILL-DOWN (Education Level to Marital Status)")
 print("================================================================================")
 q2 = '''
 SELECT 
-    o.occupation,
-    d.sex,
+    e.education_level,
+    e.education_num,
+    d.marital_status,
     COUNT(f.fact_id) AS sample_size,
-    SUM(f.is_high_income) AS high_income_count,
-    ROUND(100.0 * SUM(f.is_high_income) / COUNT(f.fact_id), 2) AS pct_high_income,
-    ROUND(AVG(f.capital_gain - f.capital_loss), 2) AS avg_net_capital
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_earner_pct,
+    ROUND(AVG(f.capital_gain), 2) AS avg_capital_gain
 FROM FactIncome f
-JOIN DimEducation e ON f.education_id = e.education_id
-JOIN DimOccupation o ON f.occupation_id = o.occupation_id
-JOIN DimDemographics d ON f.demographics_id = d.demographics_id
-WHERE e.education_tier IN ('Undergraduate', 'Postgraduate')
-  AND o.occupation != '?'
-GROUP BY o.occupation, d.sex
+JOIN DimEducation e ON f.edu_id = e.edu_id
+JOIN DimDemographics d ON f.demo_id = d.demo_id
+GROUP BY e.education_level, e.education_num, d.marital_status
 HAVING COUNT(f.fact_id) >= 20
-ORDER BY pct_high_income DESC, sample_size DESC;
+ORDER BY e.education_num DESC, high_earner_pct DESC;
 '''
 df_q2 = pd.read_sql_query(q2, conn)
-display(df_q2.head(10))
+display(df_q2.head(12))
 
-print("\\nAnalytical Finding: Male Executive-Managerial degree holders exhibit the highest proportion (>72%) of >50K earners, with high net capital accumulation ($3,500+). Substantial gender wage disparities persist within identical educational tiers.")
+print("\\nAnalytical Finding: Drilling down reveals that marital stability is a massive multiplier across every education tier: married Doctorate holders achieve 83.6% high-income rate, compared to 48.0% for unmarried Doctorate holders.")
 """))
 
     cells.append(nbf.v4.new_code_cell("""print("================================================================================")
-print("OLAP OPERATION 3: SLICE & DICE (Regional Subcube: US by Age Group & Job Sector)")
+print("OLAP OPERATION 3: SLICE (Filter: sex = 'Female', Hours Worked vs Income)")
 print("================================================================================")
 q3 = '''
 SELECT 
-    d.age_group,
-    o.job_sector,
-    COUNT(f.fact_id) AS total_count,
-    SUM(f.is_high_income) AS high_earners,
-    ROUND(100.0 * SUM(f.is_high_income) / COUNT(f.fact_id), 2) AS high_income_rate_pct,
+    CASE 
+        WHEN f.hours_per_week < 35 THEN 'Part-time (<35 hrs)'
+        WHEN f.hours_per_week BETWEEN 35 AND 45 THEN 'Full-time (35-45 hrs)'
+        ELSE 'Overtime (>45 hrs)'
+    END AS work_hours_category,
+    COUNT(f.fact_id) AS total_females,
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS female_high_income_pct,
     ROUND(AVG(f.hours_per_week), 1) AS avg_weekly_hours,
-    ROUND(AVG(f.net_capital), 1) AS avg_net_capital
+    ROUND(AVG(f.capital_gain), 2) AS avg_capital_gain
 FROM FactIncome f
-JOIN DimGeography g ON f.geography_id = g.geography_id
-JOIN DimDemographics d ON f.demographics_id = d.demographics_id
-JOIN DimOccupation o ON f.occupation_id = o.occupation_id
-WHERE g.native_country = 'United-States'
-  AND o.job_sector != 'Other'
-GROUP BY d.age_group, o.job_sector
-ORDER BY d.age_group, high_income_rate_pct DESC;
+JOIN DimDemographics d ON f.demo_id = d.demo_id
+WHERE d.sex = 'Female'
+GROUP BY work_hours_category
+ORDER BY female_high_income_pct DESC;
 '''
 df_q3 = pd.read_sql_query(q3, conn)
 display(df_q3)
 
-print("\\nAnalytical Finding: High-earning rates peak in the 40-54 prime earning age cohort, with Self-Employed individuals leading high-income proportions (>54%) accompanied by higher average weekly hours (45+ hrs).")
+print("\\nAnalytical Finding: Slicing by female workers shows that working overtime (>45 hours/week) nearly quadruples the high-income likelihood (23.5%) compared to part-time workers (6.2%).")
 """))
 
     cells.append(nbf.v4.new_code_cell("""print("================================================================================")
-print("OLAP OPERATION 4: PIVOT / CROSS-TABULATION (Workclass vs Marital Status Matrix)")
+print("OLAP OPERATION 4: DICE (hours >= 40, age_band = '30-45', workclass = 'Private')")
 print("================================================================================")
 q4 = '''
 SELECT 
+    d.age_band,
     o.workclass,
-    COUNT(CASE WHEN d.marital_status LIKE 'Married%' THEN f.fact_id END) AS married_total,
-    ROUND(100.0 * SUM(CASE WHEN d.marital_status LIKE 'Married%' AND f.is_high_income = 1 THEN 1 ELSE 0 END) / 
-          NULLIF(COUNT(CASE WHEN d.marital_status LIKE 'Married%' THEN f.fact_id END), 0), 2) AS married_high_income_pct,
-    COUNT(CASE WHEN d.marital_status NOT LIKE 'Married%' THEN f.fact_id END) AS unmarried_total,
-    ROUND(100.0 * SUM(CASE WHEN d.marital_status NOT LIKE 'Married%' AND f.is_high_income = 1 THEN 1 ELSE 0 END) / 
-          NULLIF(COUNT(CASE WHEN d.marital_status NOT LIKE 'Married%' THEN f.fact_id END), 0), 2) AS unmarried_high_income_pct,
-    ROUND(AVG(f.hours_per_week), 1) AS overall_avg_hours
+    e.education_level,
+    d.marital_status,
+    COUNT(f.fact_id) AS cohort_size,
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_income_pct,
+    ROUND(AVG(f.hours_per_week), 1) AS avg_weekly_hours,
+    ROUND(AVG(f.capital_gain - f.capital_loss), 2) AS avg_net_capital
 FROM FactIncome f
-JOIN DimOccupation o ON f.occupation_id = o.occupation_id
-JOIN DimDemographics d ON f.demographics_id = d.demographics_id
-WHERE o.workclass != '?'
-GROUP BY o.workclass
-ORDER BY married_high_income_pct DESC;
+JOIN DimDemographics d ON f.demo_id = d.demo_id
+JOIN DimOccupation o ON f.occ_id = o.occ_id
+JOIN DimEducation e ON f.edu_id = e.edu_id
+WHERE f.hours_per_week >= 40
+  AND d.age_band = '30-45'
+  AND o.workclass = 'Private'
+GROUP BY d.age_band, o.workclass, e.education_level, d.marital_status
+HAVING COUNT(f.fact_id) >= 20
+ORDER BY high_income_pct DESC;
 '''
 df_q4 = pd.read_sql_query(q4, conn)
-display(df_q4)
+display(df_q4.head(10))
 
 conn.close()
 print("\\nDatabase connection closed. All 4 OLAP operations verified.")

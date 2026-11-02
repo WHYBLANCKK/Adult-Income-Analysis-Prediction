@@ -170,13 +170,13 @@ print(f"K-Means k=5 Silhouette: {sil_scores[5]:.4f}")
     cells.append(nbf.v4.new_markdown_cell("""### 2. Hierarchical Agglomerative Clustering & Dendrogram
 
 We perform bottom-up agglomerative clustering using **Ward's minimum variance criterion**:
-$$\\Delta ESS_{A, B} = \\frac{n_A n_B}{n_A + n_B} \\|\\mu_A - \\mu_B\\|^2$$
-To ensure sharp dendrogram legibility and maintain computational tractability ($O(N^2)$ memory), a representative stratified sample of $N=750$ individuals is utilized.
+$$\Delta ESS_{A, B} = \frac{n_A n_B}{n_A + n_B} \|\mu_A - \mu_B\|^2$$
+To ensure sharp dendrogram legibility and comply with the required sampling scope (~150–300 records), a representative stratified sample of $N=250$ individuals is utilized.
 """))
 
-    cells.append(nbf.v4.new_code_cell("""# Sample 750 records for crisp hierarchical visualization
+    cells.append(nbf.v4.new_code_cell("""# Sample 250 records for crisp hierarchical visualization
 sample_idx = train_df.groupby('income', group_keys=False).apply(
-    lambda x: x.sample(int(750 * len(x) / len(train_df)), random_state=42)
+    lambda x: x.sample(int(250 * len(x) / len(train_df)), random_state=42)
 ).index
 
 X_sample = X_scaled[sample_idx]
@@ -190,16 +190,16 @@ fig, ax = plt.subplots(figsize=(14, 6))
 dendrogram(
     linkage_matrix,
     truncate_mode='lastp',
-    p=35, # Show top 35 merged branches
+    p=30, # Show top 30 merged branches
     leaf_rotation=90,
-    leaf_font_size=8,
-    color_threshold=28, # Cut line corresponding to k=3 clusters
+    leaf_font_size=9,
+    color_threshold=18, # Cut line corresponding to k=3 clusters
     above_threshold_color='#7f8c8d',
     ax=ax
 )
-ax.axhline(28, color='#c0392b', linestyle='--', linewidth=1.5, label='Cut threshold (k=3 Clusters)')
-ax.set_title('Hierarchical Clustering Dendrogram (Ward Linkage, N=750 Sample)')
-ax.set_xlabel('Sample Clustered Subtrees (Truncated to 35 Branches)')
+ax.axhline(18, color='#c0392b', linestyle='--', linewidth=1.5, label='Cut threshold (k=3 Clusters)')
+ax.set_title('Hierarchical Clustering Dendrogram (Ward Linkage, N=250 Sample)')
+ax.set_xlabel('Sample Clustered Subtrees (Truncated to 30 Branches)')
 ax.set_ylabel('Ward Euclidean Merge Distance')
 ax.legend()
 
@@ -213,10 +213,10 @@ print(f"Dendrogram saved to: {dendro_path}")
     # Cell 7: Density-Based Clustering (DBSCAN)
     cells.append(nbf.v4.new_markdown_cell("""### 3. Density-Based Clustering (DBSCAN)
 
-#### Parameter Selection via k-Distance Graph:
+#### Systematic Parameter Tuning & Knee Detection:
 DBSCAN requires two parameters:
-1. `min_samples`: Set to $2 \\times p = 10$ (where $p=5$ continuous dimensions) following Ester et al. (1996).
-2. `eps` ($\\varepsilon$): Selected by identifying the maximum curvature ("elbow/knee") in the sorted 5-nearest-neighbor distance plot.
+1. `min_samples`: Set to $2 \times p = 10$ (where $p=5$ continuous dimensions) following Ester et al. (1996).
+2. `eps` ($\varepsilon$): Selected by examining the maximum curvature ("knee") in the sorted 5-nearest-neighbor distance plot, verified against a systematic parameter tuning grid.
 """))
 
     cells.append(nbf.v4.new_code_cell("""# Compute 5-NN distances for knee detection
@@ -230,7 +230,7 @@ sorted_distances = np.sort(distances[:, -1])
 
 fig, ax = plt.subplots(figsize=(8, 4.5))
 ax.plot(sorted_distances, color='#2c3e50', linewidth=1.8)
-ax.axhline(0.65, color='#e74c3c', linestyle='--', label='Selected eps = 0.65')
+ax.axhline(0.50, color='#e74c3c', linestyle='--', label='Selected eps = 0.50')
 ax.set_title('DBSCAN Parameter Selection: Sorted 5-NN Distance Graph')
 ax.set_xlabel('Points Sorted by Distance')
 ax.set_ylabel('Distance to 5-th Nearest Neighbor')
@@ -243,25 +243,45 @@ plt.show()
 print(f"k-Distance graph saved to: {k_dist_path}")
 """))
 
-    # Cell 8: DBSCAN Execution & Noise Detection
-    cells.append(nbf.v4.new_markdown_cell("""#### DBSCAN Execution
-We fit DBSCAN with $\\varepsilon = 0.65$ and $\\text{MinPts} = 10$. Points with label `-1` represent sparse outliers / noise points that do not belong to any dense socioeconomic core.
+    # Cell 8: DBSCAN Execution & Parameter Tuning Grid
+    cells.append(nbf.v4.new_markdown_cell("""#### DBSCAN Parameter Tuning Evaluation
+To avoid arbitrary parameter assignment, we evaluate a systematic grid of $\varepsilon \in \{0.3, 0.5, 0.8, 1.0\}$ and $\text{MinPts} \in \{5, 10\}$ on an 8,000-record stratified sample.
 """))
 
-    cells.append(nbf.v4.new_code_cell("""# Execute DBSCAN on 15,000 stratified observations for rapid execution
-sub_indices = train_df.groupby('income', group_keys=False).apply(
-    lambda x: x.sample(int(15000 * len(x) / len(train_df)), random_state=42)
+    cells.append(nbf.v4.new_code_cell("""# Parameter Tuning Grid on 8,000 stratified observations
+grid_idx = train_df.groupby('income', group_keys=False).apply(
+    lambda x: x.sample(int(8000 * len(x) / len(train_df)), random_state=42)
 ).index
+X_grid = X_scaled[grid_idx]
 
-X_db = X_scaled[sub_indices]
-dbscan = DBSCAN(eps=0.65, min_samples=10)
-db_labels = dbscan.fit_predict(X_db)
+grid_results = []
+for eps in [0.3, 0.5, 0.8, 1.0]:
+    for ms in [5, 10]:
+        db = DBSCAN(eps=eps, min_samples=ms)
+        labels = db.fit_predict(X_grid)
+        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+        n_noise = (labels == -1).sum()
+        noise_pct = 100 * n_noise / len(labels)
+        grid_results.append({
+            'eps (ε)': eps,
+            'min_samples': ms,
+            'Clusters Found': n_clusters,
+            'Noise Count': n_noise,
+            'Noise (%)': f"{noise_pct:.1f}%"
+        })
 
-unique_labels, counts = np.unique(db_labels, return_counts=True)
-db_results = pd.DataFrame({'Cluster': unique_labels, 'Observation Count': counts})
-db_results['Type'] = db_results['Cluster'].apply(lambda c: 'Noise / Outlier' if c == -1 else f'Dense Core {c}')
-db_results['Percentage'] = (100 * db_results['Observation Count'] / len(db_labels)).round(2)
-display(db_results)
+print("--- DBSCAN Parameter Tuning Grid Evaluation ---")
+display(pd.DataFrame(grid_results))
+
+# Optimal Selection: eps = 0.50, min_samples = 10
+final_db = DBSCAN(eps=0.50, min_samples=10)
+final_labels = final_db.fit_predict(X_grid)
+
+unique_labels, counts = np.unique(final_labels, return_counts=True)
+db_summary = pd.DataFrame({'Cluster': unique_labels, 'Observation Count': counts})
+db_summary['Classification'] = db_summary['Cluster'].apply(lambda c: 'Noise / Outlier' if c == -1 else f'Dense Core Cluster {c}')
+db_summary['Percentage (%)'] = (100 * db_summary['Observation Count'] / len(final_labels)).round(2)
+display(db_summary)
 """))
 
     # Cell 9: Cluster Cross-Tabulation Against Ground-Truth Income

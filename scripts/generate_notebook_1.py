@@ -50,7 +50,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.spatial.distance import cdist, pdist, squareform
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, OneHotEncoder
 
 # Plotting configuration
 plt.style.use('seaborn-v0_8-whitegrid' if 'seaborn-v0_8-whitegrid' in plt.style.available else 'default')
@@ -315,19 +315,19 @@ display(personas[['age', 'workclass', 'education', 'occupation', 'hours-per-week
     # Cell 9: Profile Preprocessing & Distance Metric Computation
     cells.append(nbf.v4.new_markdown_cell("""#### Feature Transformation for Distance Computation
 To compute Euclidean, Manhattan, and Cosine metrics rigorously:
-1. Continuous features (`age`, `education-num`, `capital-gain`, `capital-loss`, `hours-per-week`) are normalized via `StandardScaler`.
+1. Continuous features (`age`, `education-num`, `capital-gain`, `capital-loss`, `hours-per-week`) are normalized to $[0, 1]$ via `MinMaxScaler`.
 2. Categorical features (`workclass`, `marital-status`, `occupation`, `relationship`, `race`, `sex`) are encoded via `OneHotEncoder`.
 3. Pairwise distance matrices are computed:
-   - **Euclidean Distance:** $d_E(u, v) = \\sqrt{\\sum_{i=1}^p (u_i - v_i)^2}$
-   - **Manhattan Distance:** $d_M(u, v) = \\sum_{i=1}^p |u_i - v_i|$
-   - **Cosine Similarity:** $S_C(u, v) = \\frac{u \\cdot v}{\\|u\\|_2 \\|v\\|_2}$
+   - **Euclidean Distance:** $d_E(u, v) = \sqrt{\sum_{i=1}^p (u_i - v_i)^2}$
+   - **Manhattan Distance:** $d_M(u, v) = \sum_{i=1}^p |u_i - v_i|$
+   - **Cosine Similarity:** $S_C(u, v) = \frac{u \cdot v}{\|u\|_2 \|v\|_2}$
 """))
 
     cells.append(nbf.v4.new_code_cell("""# Prepare features for distance calculation
 sim_num_cols = ['age', 'education-num', 'capital-gain', 'capital-loss', 'hours-per-week']
 sim_cat_cols = ['workclass', 'marital-status', 'occupation', 'relationship', 'race', 'sex']
 
-scaler = StandardScaler()
+scaler = MinMaxScaler()
 scaled_num = scaler.fit_transform(personas[sim_num_cols])
 
 ohe = OneHotEncoder(sparse_output=False, handle_unknown='ignore')

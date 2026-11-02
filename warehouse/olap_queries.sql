@@ -4,90 +4,91 @@
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------
--- OLAP QUERY 1: Roll-up (Hierarchical Aggregation across Education Levels)
--- Evaluates population volume, high-income count, high-income rate (%), and
--- average work hours across formal education tiers and credentials.
--- ------------------------------------------------------------------------------
-SELECT 
-    e.education_tier,
-    e.education,
-    e.education_num,
-    COUNT(f.fact_id) AS total_individuals,
-    SUM(f.is_high_income) AS high_income_count,
-    ROUND(100.0 * SUM(f.is_high_income) / COUNT(f.fact_id), 2) AS pct_high_income,
-    ROUND(AVG(f.hours_per_week), 1) AS avg_hours_per_week,
-    ROUND(AVG(f.capital_gain), 2) AS avg_capital_gain
-FROM FactIncome f
-JOIN DimEducation e ON f.education_id = e.education_id
-GROUP BY e.education_tier, e.education, e.education_num
-ORDER BY e.education_num DESC;
-
-
--- ------------------------------------------------------------------------------
--- OLAP QUERY 2: Drill-down (Occupation & Gender Breakdown for Higher Degrees)
--- Drills down into individuals holding Undergraduate or Postgraduate degrees
--- to examine how high-earning rates vary by specific occupation and gender.
--- ------------------------------------------------------------------------------
-SELECT 
-    o.occupation,
-    d.sex,
-    COUNT(f.fact_id) AS sample_size,
-    SUM(f.is_high_income) AS high_income_count,
-    ROUND(100.0 * SUM(f.is_high_income) / COUNT(f.fact_id), 2) AS pct_high_income,
-    ROUND(AVG(f.capital_gain - f.capital_loss), 2) AS avg_net_capital
-FROM FactIncome f
-JOIN DimEducation e ON f.education_id = e.education_id
-JOIN DimOccupation o ON f.occupation_id = o.occupation_id
-JOIN DimDemographics d ON f.demographics_id = d.demographics_id
-WHERE e.education_tier IN ('Undergraduate', 'Postgraduate')
-  AND o.occupation != '?'
-GROUP BY o.occupation, d.sex
-HAVING COUNT(f.fact_id) >= 20
-ORDER BY pct_high_income DESC, sample_size DESC;
-
-
--- ------------------------------------------------------------------------------
--- OLAP QUERY 3: Slice and Dice (Regional & Demographic Subcube)
--- Slice: Filter by native_country = 'United-States'
--- Dice: Analyze across Age Groups and Work Sectors (Government, Private, Self-Employed)
--- Computes high-earning rate, average hours, and net capital gains.
--- ------------------------------------------------------------------------------
-SELECT 
-    d.age_group,
-    o.job_sector,
-    COUNT(f.fact_id) AS total_count,
-    SUM(f.is_high_income) AS high_earners,
-    ROUND(100.0 * SUM(f.is_high_income) / COUNT(f.fact_id), 2) AS high_income_rate_pct,
-    ROUND(AVG(f.hours_per_week), 1) AS avg_weekly_hours,
-    ROUND(AVG(f.net_capital), 1) AS avg_net_capital
-FROM FactIncome f
-JOIN DimGeography g ON f.geography_id = g.geography_id
-JOIN DimDemographics d ON f.demographics_id = d.demographics_id
-JOIN DimOccupation o ON f.occupation_id = o.occupation_id
-WHERE g.native_country = 'United-States'
-  AND o.job_sector != 'Other'
-GROUP BY d.age_group, o.job_sector
-ORDER BY d.age_group, high_income_rate_pct DESC;
-
-
--- ------------------------------------------------------------------------------
--- OLAP QUERY 4: Pivot / Cross-Tabulation (Workclass vs Marital Status High-Income Matrix)
--- Aggregates income profiles across employment sector and marital stability,
--- providing a 2D view of high-income concentration.
+-- OLAP QUERY 1: Roll-up (Aggregate Income Distribution from Occupation to Workclass)
+-- Aggregates workforce count and high-earner rate across individual occupations,
+-- rolling up to broader employment sectors (workclass).
 -- ------------------------------------------------------------------------------
 SELECT 
     o.workclass,
-    COUNT(CASE WHEN d.marital_status LIKE 'Married%' THEN f.fact_id END) AS married_total,
-    ROUND(100.0 * SUM(CASE WHEN d.marital_status LIKE 'Married%' AND f.is_high_income = 1 THEN 1 ELSE 0 END) / 
-          NULLIF(COUNT(CASE WHEN d.marital_status LIKE 'Married%' THEN f.fact_id END), 0), 2) AS married_high_income_pct,
-    COUNT(CASE WHEN d.marital_status NOT LIKE 'Married%' THEN f.fact_id END) AS unmarried_total,
-    ROUND(100.0 * SUM(CASE WHEN d.marital_status NOT LIKE 'Married%' AND f.is_high_income = 1 THEN 1 ELSE 0 END) / 
-          NULLIF(COUNT(CASE WHEN d.marital_status NOT LIKE 'Married%' THEN f.fact_id END), 0), 2) AS unmarried_high_income_pct,
-    ROUND(AVG(f.hours_per_week), 1) AS overall_avg_hours
+    o.occupation,
+    COUNT(f.fact_id) AS total_workers,
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_earner_pct,
+    ROUND(AVG(f.hours_per_week), 1) AS avg_hours_per_week
 FROM FactIncome f
-JOIN DimOccupation o ON f.occupation_id = o.occupation_id
-JOIN DimDemographics d ON f.demographics_id = d.demographics_id
-WHERE o.workclass != '?'
-GROUP BY o.workclass
-ORDER BY married_high_income_pct DESC;
+JOIN DimOccupation o ON f.occ_id = o.occ_id
+WHERE o.workclass != '?' AND o.occupation != '?'
+GROUP BY o.workclass, o.occupation
+ORDER BY o.workclass, high_earner_pct DESC;
 
+
+-- ------------------------------------------------------------------------------
+-- OLAP QUERY 2: Drill-down (Analyze High-Earner Rate: Education Levels to Marital Status)
+-- Drills down into each education tier to reveal how marital stability impacts
+-- the probability of earning >50K across credentials.
+-- ------------------------------------------------------------------------------
+SELECT 
+    e.education_level,
+    e.education_num,
+    d.marital_status,
+    COUNT(f.fact_id) AS sample_size,
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_earner_pct,
+    ROUND(AVG(f.capital_gain), 2) AS avg_capital_gain
+FROM FactIncome f
+JOIN DimEducation e ON f.edu_id = e.edu_id
+JOIN DimDemographics d ON f.demo_id = d.demo_id
+GROUP BY e.education_level, e.education_num, d.marital_status
+HAVING COUNT(f.fact_id) >= 20
+ORDER BY e.education_num DESC, high_earner_pct DESC;
+
+
+-- ------------------------------------------------------------------------------
+-- OLAP QUERY 3: Slice (Filter: sex = 'Female', Analyze Hours Worked vs. Income)
+-- Isolates the female workforce subcube to quantify the relationship between
+-- weekly working hours brackets and high-income attainment.
+-- ------------------------------------------------------------------------------
+SELECT 
+    CASE 
+        WHEN f.hours_per_week < 35 THEN 'Part-time (<35 hrs)'
+        WHEN f.hours_per_week BETWEEN 35 AND 45 THEN 'Full-time (35-45 hrs)'
+        ELSE 'Overtime (>45 hrs)'
+    END AS work_hours_category,
+    COUNT(f.fact_id) AS total_females,
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS female_high_income_pct,
+    ROUND(AVG(f.hours_per_week), 1) AS avg_weekly_hours,
+    ROUND(AVG(f.capital_gain), 2) AS avg_capital_gain
+FROM FactIncome f
+JOIN DimDemographics d ON f.demo_id = d.demo_id
+WHERE d.sex = 'Female'
+GROUP BY work_hours_category
+ORDER BY female_high_income_pct DESC;
+
+
+-- ------------------------------------------------------------------------------
+-- OLAP QUERY 4: Dice (Filter: hours_per_week >= 40, age_band = '30-45', workclass = 'Private')
+-- Slices the multidimensional cube along three simultaneous constraints:
+-- Prime career age (30-45), standard/overtime work (>=40 hrs), and private sector.
+-- Analyzes income distribution across education levels and marital status within this subcube.
+-- ------------------------------------------------------------------------------
+SELECT 
+    d.age_band,
+    o.workclass,
+    e.education_level,
+    d.marital_status,
+    COUNT(f.fact_id) AS cohort_size,
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_income_pct,
+    ROUND(AVG(f.hours_per_week), 1) AS avg_weekly_hours,
+    ROUND(AVG(f.capital_gain - f.capital_loss), 2) AS avg_net_capital
+FROM FactIncome f
+JOIN DimDemographics d ON f.demo_id = d.demo_id
+JOIN DimOccupation o ON f.occ_id = o.occ_id
+JOIN DimEducation e ON f.edu_id = e.edu_id
+WHERE f.hours_per_week >= 40
+  AND d.age_band = '30-45'
+  AND o.workclass = 'Private'
+GROUP BY d.age_band, o.workclass, e.education_level, d.marital_status
+HAVING COUNT(f.fact_id) >= 20
+ORDER BY high_income_pct DESC;
