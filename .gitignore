@@ -1,0 +1,58 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Python Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Operating System & IDE Artifacts
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Local Environment, Secrets, and Credentials
+.env
+.env.*
+*.env
+*.key
+*.pem
+*.secret
+*.token
+credentials.json
+
+# Original & Generated Data (Large / Local files)
+# Per assignment guidelines, dataset files and processed tables are kept local.
+adult/
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Local SQLite Database Files
+warehouse/*.db
+warehouse/*.sqlite
+warehouse/*.sqlite3
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary & Log Files
+*.tmp
+*.temp
+*.log
+.pytest_cache/
+
