@@ -146,10 +146,13 @@ print(f"Elbow and silhouette plot saved to: {elbow_path}")
 """))
 
     # Cell 5: Detailed Silhouette Breakdown for k=2, 3, 5
-    cells.append(nbf.v4.new_markdown_cell("""#### Comparative Silhouette Analysis for $k=2$, $k=3$, and $k=5$
-- **$k=2$:** Broad partition separating high socioeconomic capital individuals from baseline labor participants.
-- **$k=3$:** Optimal tripartite segmentation: (1) Young entry-level workforce, (2) Prime-age established professionals, (3) High capital asset accumulators.
-- **$k=5$:** Finer granularity isolating capital gain outliers and capital loss populations into distinct micro-clusters.
+    cells.append(nbf.v4.new_markdown_cell("""#### Comparative Silhouette Analysis & Selection Trade-off ($k=2, 3, 5$)
+- **$k=2$ (Silhouette: ~0.208):** Broad partition separating high socioeconomic capital individuals from baseline labor participants.
+- **$k=3$ (Silhouette: ~0.248):** Optimal tripartite macro-segmentation: (1) Young entry-level workforce, (2) Prime-age established professionals, (3) High capital asset accumulators.
+- **$k=5$ (Silhouette: ~0.295):** Mathematically highest silhouette score, but achieves this by splintering extreme capital gain ($99,999) and capital loss ($4,356) outlier points into tight, isolated micro-clusters ($n < 200$).
+
+**Trade-off & Model Selection Rationale:**
+While $k=5$ achieves a higher silhouette score than $k=3$ (0.295 vs 0.248), this increase is an artifact of outlier isolation rather than discovery of generalizable demographic cohorts. For socioeconomic interpretability and parsimony, $k=3$ is chosen as the primary segmentation because it preserves the foundational three-tier division of the workforce without excessive fragmentation, aligning with the elbow curvature inflection.
 """))
 
     cells.append(nbf.v4.new_code_cell("""# Fit models for k=2, 3, 5
@@ -167,7 +170,7 @@ print(f"K-Means k=5 Silhouette: {sil_scores[5]:.4f}")
 """))
 
     # Cell 6: Hierarchical Agglomerative Clustering
-    cells.append(nbf.v4.new_markdown_cell("""### 2. Hierarchical Agglomerative Clustering & Dendrogram
+    cells.append(nbf.v4.new_markdown_cell(r"""### 2. Hierarchical Agglomerative Clustering & Dendrogram
 
 We perform bottom-up agglomerative clustering using **Ward's minimum variance criterion**:
 $$\Delta ESS_{A, B} = \frac{n_A n_B}{n_A + n_B} \|\mu_A - \mu_B\|^2$$
@@ -244,7 +247,7 @@ print(f"k-Distance graph saved to: {k_dist_path}")
 """))
 
     # Cell 8: DBSCAN Execution & Parameter Tuning Grid
-    cells.append(nbf.v4.new_markdown_cell("""#### DBSCAN Parameter Tuning Evaluation
+    cells.append(nbf.v4.new_markdown_cell(r"""#### DBSCAN Parameter Tuning Evaluation
 To avoid arbitrary parameter assignment, we evaluate a systematic grid of $\varepsilon \in \{0.3, 0.5, 0.8, 1.0\}$ and $\text{MinPts} \in \{5, 10\}$ on an 8,000-record stratified sample.
 """))
 
@@ -354,18 +357,18 @@ print(f"Cluster comparison plot saved to: {cluster_comp_path}")
 """))
 
     # Cell 11: Summary
-    cells.append(nbf.v4.new_markdown_cell("""### 5. Clustering Analytical Synthesis
+    cells.append(nbf.v4.new_markdown_cell(r"""### 5. Clustering Analytical Synthesis
 
 1. **Partitioning Optimization (K-Means):**
-   - Elbow curve exhibits continuous decrease, but silhouette analysis identifies **$k=3$** as a natural structural partition with substantial demographic distinction.
+   - Elbow curve exhibits continuous decrease, and while $k=5$ achieves a higher silhouette score (0.295 vs 0.248) due to outlier isolation, **$k=3$** is chosen as the most parsimonious and demographically meaningful macro-partition.
    - **Cluster Profiles ($k=3$):**
      - **Cluster 0 (Baseline / Entry Workforce):** Average age ~29, education_num ~9.5 (HS grad/some college), low capital gains, 38 hours/week. Income $>50K$ rate is low (~12%).
      - **Cluster 1 (Prime Career / Educated Core):** Average age ~45, education_num ~11.5 (college/bachelors), 44 hours/week. High-income rate jumps to **~44%**.
      - **Cluster 2 (Asset Accumulators & Outliers):** High capital gains/losses ($>\\$8,000$ average), older age (~44), 43+ hours/week. High-income rate is dominant (**~62%**).
 2. **Hierarchical Dendrogram Insights:**
-   - Ward linkage reveals clear early splits separating extreme capital transactions from steady-wage earners, followed by splits dividing younger part-time workers from full-time professionals.
+   - Ward linkage on $N=250$ records reveals clear early splits separating extreme capital transactions from steady-wage earners, followed by splits dividing younger part-time workers from full-time professionals.
 3. **DBSCAN Density Structure:**
-   - With $\\varepsilon = 0.65$ and $\\text{MinPts} = 10$, DBSCAN reveals that typical census records reside within one dominant, continuous high-density manifold (~94%), while identifying ~4% of observations as isolated outliers possessing rare combinations of capital spikes, extreme ages, and non-standard work hours.
+   - Evaluated over a tuning grid ($\varepsilon \in [0.3, 0.5, 0.8, 1.0]$, $\text{MinPts} \in [5, 10]$). The knee elbow at $\varepsilon = 0.50$ and $\text{MinPts} = 10$ identifies a dominant continuous high-density core manifold (87.4%) alongside 5 small dense pockets and 10.7% boundary noise/outliers possessing rare combinations of capital spikes, non-standard ages, and extreme hours.
 """))
 
     nb.cells = cells

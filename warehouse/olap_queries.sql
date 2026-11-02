@@ -5,21 +5,20 @@
 
 -- ------------------------------------------------------------------------------
 -- OLAP QUERY 1: Roll-up (Aggregate Income Distribution from Occupation to Workclass)
--- Aggregates workforce count and high-earner rate across individual occupations,
--- rolling up to broader employment sectors (workclass).
+-- Collapses the granular occupation dimension to aggregate metrics at the broader
+-- employment sector (workclass) level.
 -- ------------------------------------------------------------------------------
 SELECT 
     o.workclass,
-    o.occupation,
     COUNT(f.fact_id) AS total_workers,
     SUM(f.income_flag) AS high_earners_count,
     ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_earner_pct,
     ROUND(AVG(f.hours_per_week), 1) AS avg_hours_per_week
 FROM FactIncome f
 JOIN DimOccupation o ON f.occ_id = o.occ_id
-WHERE o.workclass != '?' AND o.occupation != '?'
-GROUP BY o.workclass, o.occupation
-ORDER BY o.workclass, high_earner_pct DESC;
+WHERE o.workclass != '?'
+GROUP BY o.workclass
+ORDER BY high_earner_pct DESC;
 
 
 -- ------------------------------------------------------------------------------

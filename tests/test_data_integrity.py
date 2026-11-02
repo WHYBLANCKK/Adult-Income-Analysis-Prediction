@@ -30,3 +30,4 @@ def test_missing_value_markers():
     assert test_df['workclass'].isna().sum() == 963
     assert test_df['occupation'].isna().sum() == 966
     assert test_df['native-country'].isna().sum() == 274
+

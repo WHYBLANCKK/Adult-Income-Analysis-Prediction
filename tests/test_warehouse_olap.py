@@ -31,10 +31,10 @@ def test_star_schema_tables_and_queries():
     
     assert len(queries) == 4, f"Expected exactly 4 OLAP queries, found {len(queries)}"
     
-    # Query 1: Roll-up
+    # Query 1: Roll-up (aggregated to workclass)
     res1 = pd.read_sql_query(queries[0], conn)
     assert len(res1) > 0, "Query 1 (Roll-up) returned 0 rows"
-    assert 'workclass' in res1.columns and 'occupation' in res1.columns
+    assert 'workclass' in res1.columns and 'high_earner_pct' in res1.columns and 'total_workers' in res1.columns
     
     # Query 2: Drill-down
     res2 = pd.read_sql_query(queries[1], conn)
@@ -52,3 +52,4 @@ def test_star_schema_tables_and_queries():
     assert 'age_band' in res4.columns and 'high_income_pct' in res4.columns
     
     conn.close()
+

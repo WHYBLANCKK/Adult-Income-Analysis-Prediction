@@ -64,3 +64,4 @@ def test_association_rules_thresholds():
     assert len(rules) > 0, "No rules found at min_threshold=0.70"
     high_lift = rules[rules['lift'] > 1.2]
     assert len(high_lift) > 0, "No rules with lift > 1.2"
+

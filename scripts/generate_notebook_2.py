@@ -395,24 +395,43 @@ We execute the queries specified in `warehouse/olap_queries.sql` against the liv
     cells.append(nbf.v4.new_code_cell("""print("================================================================================")
 print("OLAP OPERATION 1: ROLL-UP (From Occupation to Workclass)")
 print("================================================================================")
+# 1. Primary Roll-up: Collapsing the occupation dimension to aggregate at the workclass level
 q1 = '''
 SELECT 
     o.workclass,
-    o.occupation,
     COUNT(f.fact_id) AS total_workers,
     SUM(f.income_flag) AS high_earners_count,
     ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_earner_pct,
     ROUND(AVG(f.hours_per_week), 1) AS avg_hours_per_week
 FROM FactIncome f
 JOIN DimOccupation o ON f.occ_id = o.occ_id
-WHERE o.workclass != '?' AND o.occupation != '?'
+WHERE o.workclass != '?'
+GROUP BY o.workclass
+ORDER BY high_earner_pct DESC;
+'''
+df_q1 = pd.read_sql_query(q1, conn)
+print("--- Rolled-up Income Distribution by Workclass ---")
+display(df_q1)
+
+# 2. Granular Detail (Occupation level) illustrating the base hierarchy before roll-up
+q1_detail = '''
+SELECT 
+    o.workclass,
+    o.occupation,
+    COUNT(f.fact_id) AS total_workers,
+    SUM(f.income_flag) AS high_earners_count,
+    ROUND(100.0 * SUM(f.income_flag) / COUNT(f.fact_id), 2) AS high_earner_pct
+FROM FactIncome f
+JOIN DimOccupation o ON f.occ_id = o.occ_id
+WHERE o.workclass IN ('Federal-gov', 'Self-emp-inc', 'Private') AND o.occupation != '?'
 GROUP BY o.workclass, o.occupation
 ORDER BY o.workclass, high_earner_pct DESC;
 '''
-df_q1 = pd.read_sql_query(q1, conn)
-display(df_q1.head(10))
+df_q1_detail = pd.read_sql_query(q1_detail, conn)
+print("\\n--- Granular Occupation Detail (Illustrating Base Hierarchy Before Roll-up) ---")
+display(df_q1_detail.head(8))
 
-print("\\nAnalytical Finding: Rolling up shows high-earning concentration highest in Federal-gov Prof-specialty (54.3%) and Exec-managerial (51.1%), whereas Private-sector roles vary widely from Exec-managerial (48.4%) to Other-service (4.2%).")
+print("\\nAnalytical Finding: Rolling up from occupation to workclass aggregates across roles, revealing that Self-emp-inc achieves the highest high-earner proportion overall (55.7%), followed by Federal-gov (38.7%). When inspecting the granular pre-rollup hierarchy, Federal-gov is led by Prof-specialty (54.3%) and Exec-managerial (51.1%), whereas Private-sector roles span widely from 48.4% (Exec-managerial) down to 4.2% (Other-service).")
 """))
 
     cells.append(nbf.v4.new_code_cell("""print("================================================================================")

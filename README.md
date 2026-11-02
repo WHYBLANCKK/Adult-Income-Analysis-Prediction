@@ -8,34 +8,27 @@ The primary analytical objective is predicting whether an individual earns more 
 
 ---
 
-### Project Structure
+### Project Structure & Tracked Files
 
+#### Committed Repository Contents (Tracked in Git)
 ```text
 adult-income-mining/
-├── adult/                                    # Untouched original UCI dataset files
-│   ├── Index                                 # Archive index
-│   ├── adult.data                            # Official training set (32,561 records)
-│   ├── adult.names                           # Official data dictionary & benchmark doc
-│   ├── adult.test                            # Official test set (16,281 records)
-│   └── old.adult.names                       # Legacy UCI metadata archive
+├── .gitignore                                # Excludes raw data, local DBs, and environments
+├── README.md                                 # Comprehensive project report & guide
+├── requirements.txt                          # Pinned project dependencies (pytest, scikit-learn, etc.)
+├── run_project.py                            # End-to-end master automated execution runner
 ├── data/
-│   ├── raw/                                  # Non-duplicative symlinks to original dataset
-│   │   ├── adult.data -> ../../adult/adult.data
-│   │   ├── adult.names -> ../../adult/adult.names
-│   │   └── adult.test -> ../../adult/adult.test
-│   └── processed/                            # Preprocessed, cleaned datasets
-│       ├── adult_cleaned_train.csv           # Cleaned training data (32,561 x 13)
-│       └── adult_cleaned_test.csv            # Cleaned test data (16,281 x 13)
-├── notebooks/                                # Executed Jupyter Notebooks with full outputs
+│   ├── raw/                                  # Raw dataset destination (.gitkeep tracked)
+│   └── processed/                            # Preprocessed dataset destination (.gitkeep tracked)
+├── notebooks/                                # Fully executed Jupyter Notebooks with all outputs
 │   ├── 01_eda_and_similarity.ipynb           # EDA, 5-number summaries, skewness & similarity
 │   ├── 02_preprocessing_pca_warehouse.ipynb  # Preprocessing, PCA & SQLite Star Schema OLAP
 │   ├── 03_classification_and_association.ipynb # Decision Tree, RIPPER, KNN & Association Rules
 │   └── 04_clustering.ipynb                   # K-Means, Hierarchical Dendrogram & DBSCAN
-├── warehouse/                                # Relational OLAP Data Warehouse
+├── warehouse/                                # Relational OLAP Data Warehouse DDL & Queries
 │   ├── schema.sql                            # DDL script creating Star Schema tables & indexes
-│   ├── olap_queries.sql                      # SQL scripts for 4 core OLAP operations
-│   └── adult_dw.db                           # Local SQLite database populated with data
-├── outputs/                                  # High-resolution saved plots & visualizations
+│   └── olap_queries.sql                      # SQL scripts for 4 core OLAP operations
+├── outputs/                                  # 16 High-resolution saved plots & visualizations (.png)
 │   ├── eda_numeric_distributions.png         # Numeric distributions and skewness profiles
 │   ├── eda_categorical_counts.png            # Frequency distributions of primary categoricals
 │   ├── eda_income_distribution.png           # Target income class imbalance bar chart
@@ -52,26 +45,30 @@ adult-income-mining/
 │   ├── hierarchical_dendrogram.png           # Ward's minimum variance dendrogram (N=250)
 │   ├── dbscan_k_distance.png                 # 5-NN distance graph for eps radius detection
 │   └── clustering_cluster_comparisons.png    # 2D cluster projections vs true income labels
-├── scripts/                                  # Notebook generation & verification scripts
+├── scripts/                                  # Notebook generation & data utilities
 │   ├── data_utils.py                         # Ingestion & data-hygiene utilities
 │   ├── generate_notebook_1.py
 │   ├── generate_notebook_2.py
 │   ├── generate_notebook_3.py
 │   └── generate_notebook_4.py
-├── tests/                                    # Automated pytest verification suite
-│   ├── test_data_integrity.py                # Dataset dimensions, markers, labels
-│   ├── test_warehouse_olap.py                # Star schema tables & 4 OLAP operations
-│   └── test_models.py                        # Model pipelines, association rules
-├── run_project.py                            # End-to-end master execution runner
-├── requirements.txt                          # Pinned project dependencies
-└── README.md                                 # Comprehensive project report & guide
+└── tests/                                    # Automated pytest test suite
+    ├── test_data_integrity.py                # Dataset dimensions, markers, labels
+    ├── test_warehouse_olap.py                # Star schema tables & 4 OLAP operations
+    └── test_models.py                        # Model pipelines & association rules
 ```
+
+#### Local / Generated Artifacts (Excluded via `.gitignore`)
+The following files are generated during execution or placed locally by the user and are strictly excluded from the Git tree:
+- `adult/` or `data/raw/` (`adult.data`, `adult.test`, `adult.names`): Raw UCI data files placed locally.
+- `data/processed/*.csv`: Cleaned intermediate CSV files created by scripts/notebooks.
+- `warehouse/adult_dw.db`: SQLite database created and populated by `run_project.py` or Notebook 2.
+- `.venv/`: Python virtual environment.
 
 ---
 
 ### Dataset Placement (Local Setup)
 
-The original raw dataset files (`adult.data`, `adult.test`, `adult.names`) are excluded from this Git repository to preserve local data privacy and comply with repository size best practices.
+The original raw dataset files (`adult.data`, `adult.test`, `adult.names`) are excluded from this Git repository to comply with repository size and data distribution guidelines.
 
 To run the project on a fresh clone:
 1. Download the Adult Census Income dataset from the [UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/2/adult) or extract the course-provided archive.
@@ -156,7 +153,7 @@ pytest tests/
   - **DimOccupation:** `occ_id`, `workclass`, `occupation`.
   - **DimGeography:** `geo_id`, `native_country`.
   - **Four Core OLAP Operations:**
-    1. *Roll-up:* Aggregates income distribution from specific `occupation` to broader `workclass`.
+    1. *Roll-up:* Collapses granular occupation detail to aggregate income distribution directly at the broader `workclass` level (Self-emp-inc: 55.73%, Federal-gov: 38.65%, Local-gov: 29.48%, Self-emp-not-inc: 28.49%, State-gov: 27.20%, Private: 21.87%).
     2. *Drill-down:* Analyzes high-earner proportion from `education_level` down into `marital_status`.
     3. *Slice:* Isolates demographic sub-population filtering strictly on `sex = 'Female'` to analyze hours worked vs. income.
     4. *Dice:* Multi-dimensional filter on `hours_per_week >= 40`, `age_band = '30-45'`, and `workclass = 'Private'`.
@@ -189,16 +186,17 @@ pytest tests/
 #### Notebook 4: Unsupervised Clustering (`04_clustering.ipynb`)
 - **K-Means Clustering:**
   - Evaluated $k \in \{2, 3, 4, 5, 6\}$ using inertia (WCSS) and silhouette analysis.
-  - $k=3$ emerges as the optimal compromise:
+  - Evaluated silhouette scores: $k=2$ (0.208), $k=3$ (0.248), $k=5$ (0.295).
+  - **Selection Rationale & Trade-off:** While $k=5$ achieves the highest mathematical silhouette score (0.295), this is an artifact of isolating extreme capital-gain/loss outlier records into tiny micro-clusters ($n < 200$). $k=3$ is selected as the optimal macroeconomic segmentation because it balances the elbow inflection with high interpretability across three distinct socioeconomic cohorts:
     - *Cluster 0 (Entry-level Workforce):* Mean age 29, HS-grad level, low capital gain, 12% high-income rate.
     - *Cluster 1 (Prime Career / Educated):* Mean age 45, college/bachelors, 44% high-income rate.
     - *Cluster 2 (Asset Accumulators):* Substantial capital gains/losses ($>$ $8,000 avg), 62% high-income rate.
 - **Hierarchical Agglomerative Clustering:**
-  - Applied Ward's minimum variance linkage on a representative stratified sample ($N=250$, within the recommended 150-300 range).
+  - Applied Ward's minimum variance linkage on a representative stratified sample of exactly $N=250$ records (complying with the 150–300 recommendation).
   - Dendrogram confirms natural major divergence separating asset accumulators from standard wage workers into 3 primary subtrees.
 - **DBSCAN:**
-  - Evaluated systematic parameter grid ($\varepsilon \in [0.3, 0.5, 0.8, 1.0]$, $\text{MinPts} \in [5, 10]$).
-  - Grounded in 5-NN distance graph elbow at $\varepsilon = 0.50$, $\text{MinPts} = 10$, yielding 6 clusters and 10.7% noise.
+  - Evaluated over a systematic parameter grid ($\varepsilon \in [0.3, 0.5, 0.8, 1.0]$, $\text{MinPts} \in [5, 10]$).
+  - Grounded in 5-NN distance graph elbow at $\varepsilon = 0.50$, $\text{MinPts} = 10$, yielding a dominant continuous core manifold (87.4%), 5 small dense pockets, and 10.7% boundary noise points.
 - **Cross-Tabulation Against Ground Truth:**
   - Compares unsupervised cluster assignments with true income brackets, demonstrating that unsupervised partitioning naturally aligns along human capital and asset-ownership divides.
 
