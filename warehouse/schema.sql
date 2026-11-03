@@ -1,6 +1,6 @@
 -- ==============================================================================
--- DMW Activity 2: Adult Census Income Data Warehouse
--- Star Schema Definition (SQLite compatible)
+-- Adult Income Analysis & Prediction: Data Warehouse Schema
+-- Multidimensional Star Schema Definition (SQLite Compatible)
 -- ==============================================================================
 
 DROP TABLE IF EXISTS FactIncome;

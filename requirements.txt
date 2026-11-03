@@ -1,5 +1,5 @@
-# Data Mining & Warehousing (DMW) Activity 2: Adult Income Mining
-# Environment dependencies
+# Adult Income Analysis & Prediction - Project Dependencies
+# Core analytical, machine learning, and testing libraries
 pandas>=2.2.0
 numpy>=1.26.0
 scikit-learn>=1.4.0

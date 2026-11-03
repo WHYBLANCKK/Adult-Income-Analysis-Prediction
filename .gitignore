@@ -35,7 +35,7 @@ Thumbs.db
 credentials.json
 
 # Original & Generated Data (Large / Local files)
-# Per assignment guidelines, dataset files and processed tables are kept local.
+# Raw dataset files and processed tables are kept local.
 adult/
 data/raw/*
 !data/raw/.gitkeep

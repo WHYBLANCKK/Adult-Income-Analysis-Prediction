@@ -24,8 +24,8 @@ def build_notebook_4():
     cells = []
 
     # Title & Overview
-    cells.append(nbf.v4.new_markdown_cell("""# Data Mining & Warehousing (DMW) - Activity 2
-## Notebook 4: Unsupervised Clustering & Socioeconomic Segmentation
+    cells.append(nbf.v4.new_markdown_cell("""# Adult Income Analysis & Prediction
+## Part 4: Unsupervised Learning & Population Segmentation
 
 ### Notebook Objectives:
 1. **Partitioning Clustering (K-Means):**
@@ -174,7 +174,7 @@ print(f"K-Means k=5 Silhouette: {sil_scores[5]:.4f}")
 
 We perform bottom-up agglomerative clustering using **Ward's minimum variance criterion**:
 $$\Delta ESS_{A, B} = \frac{n_A n_B}{n_A + n_B} \|\mu_A - \mu_B\|^2$$
-To ensure sharp dendrogram legibility and comply with the required sampling scope (~150–300 records), a representative stratified sample of $N=250$ individuals is utilized.
+To ensure sharp dendrogram legibility, a representative stratified sample of $N=250$ individuals is utilized.
 """))
 
     cells.append(nbf.v4.new_code_cell("""# Sample 250 records for crisp hierarchical visualization
@@ -248,7 +248,7 @@ print(f"k-Distance graph saved to: {k_dist_path}")
 
     # Cell 8: DBSCAN Execution & Parameter Tuning Grid
     cells.append(nbf.v4.new_markdown_cell(r"""#### DBSCAN Parameter Tuning Evaluation
-To avoid arbitrary parameter assignment, we evaluate a systematic grid of $\varepsilon \in \{0.3, 0.5, 0.8, 1.0\}$ and $\text{MinPts} \in \{5, 10\}$ on an 8,000-record stratified sample.
+To avoid arbitrary parameter selection, we evaluate a systematic grid of $\varepsilon \in \{0.3, 0.5, 0.8, 1.0\}$ and $\text{MinPts} \in \{5, 10\}$ on an 8,000-record stratified sample.
 """))
 
     cells.append(nbf.v4.new_code_cell("""# Parameter Tuning Grid on 8,000 stratified observations

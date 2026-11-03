@@ -1,6 +1,6 @@
 -- ==============================================================================
--- DMW Activity 2: Adult Census Income OLAP Operations
--- Four Core OLAP Queries Executed Against the Star Schema
+-- Adult Income Analysis & Prediction: OLAP Operations
+-- Four Core Multidimensional Queries Executed Against the Star Schema
 -- ==============================================================================
 
 -- ------------------------------------------------------------------------------

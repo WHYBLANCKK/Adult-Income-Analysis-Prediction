@@ -24,8 +24,8 @@ def build_notebook_3():
     cells = []
 
     # Title & Overview
-    cells.append(nbf.v4.new_markdown_cell("""# Data Mining & Warehousing (DMW) - Activity 2
-## Notebook 3: Supervised Classification and Association Rule Mining
+    cells.append(nbf.v4.new_markdown_cell("""# Adult Income Analysis & Prediction
+## Part 3: Income Classification & Association Rule Mining
 
 ### Notebook Objectives:
 1. **Supervised Classification Modeling:**
@@ -377,7 +377,7 @@ print(f"FP-Growth Speedup : {speedup:.2f}x faster than Apriori")
 """))
 
     # Cell 12: Association Rule Extraction & Analysis
-    cells.append(nbf.v4.new_code_cell("""# Extract association rules with assignment required minimum confidence >= 0.70
+    cells.append(nbf.v4.new_code_cell("""# Extract association rules with minimum confidence threshold >= 0.70 and lift > 1.2
 rules = association_rules(freq_fpgrowth, metric='confidence', min_threshold=0.70)
 
 # Filter rules with lift > 1.2

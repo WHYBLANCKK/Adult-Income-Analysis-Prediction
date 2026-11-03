@@ -24,8 +24,8 @@ def build_notebook_2():
     cells = []
 
     # Title & Overview
-    cells.append(nbf.v4.new_markdown_cell("""# Data Mining & Warehousing (DMW) - Activity 2
-## Notebook 2: Preprocessing, PCA Dimensionality Reduction, and Data Warehousing (OLAP)
+    cells.append(nbf.v4.new_markdown_cell("""# Adult Income Analysis & Prediction
+## Part 2: Data Preprocessing, Dimensionality Reduction & Relational Data Warehousing
 
 ### Notebook Objectives:
 1. **Systematic Preprocessing:**
@@ -40,7 +40,7 @@ def build_notebook_2():
 3. **Data Warehousing & Star Schema (OLAP):**
    - Build a SQLite star schema comprising `FactIncome`, `DimDemographics`, `DimEducation`, `DimOccupation`, and `DimGeography`.
    - Populate dimension and fact tables via an automated ETL pipeline.
-   - Implement and execute four core OLAP operations: **Roll-up**, **Drill-down**, **Slice & Dice**, and **Pivot/Cross-tabulation**.
+   - Implement and execute four core OLAP operations: **Roll-up**, **Drill-down**, **Slice**, and **Dice**.
    - Persist cleaned data to `data/processed/` for downstream modeling.
 """))
 

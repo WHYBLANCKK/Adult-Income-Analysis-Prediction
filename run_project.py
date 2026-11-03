@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-run_project.py - Master runner for Adult Income Mining (DMW Activity 2)
-Executes all four assignment notebooks, populates the SQLite warehouse,
-runs OLAP queries, and verifies output figure generation.
+run_project.py - Master pipeline runner for Adult Income Analysis & Prediction
+Executes all four analysis notebooks sequentially, populates the SQLite data warehouse,
+runs multidimensional OLAP queries, and validates output figure generation.
 """
 
 import sys
@@ -17,16 +17,16 @@ def main():
         python_bin = Path(sys.executable)
 
     print("=" * 80)
-    print("DMW ACTIVITY 2: ADULT INCOME MINING - FULL WORKFLOW EXECUTION")
+    print("ADULT INCOME ANALYSIS & PREDICTION — FULL PIPELINE EXECUTION")
     print("=" * 80)
     print(f"Using Python interpreter: {python_bin}")
     print(f"Project directory       : {root}\n")
 
     steps = [
-        ("Notebook 1: EDA & Profile Similarity", "scripts/generate_notebook_1.py"),
-        ("Notebook 2: Preprocessing, PCA & Data Warehouse", "scripts/generate_notebook_2.py"),
-        ("Notebook 3: Classification & Association Rules", "scripts/generate_notebook_3.py"),
-        ("Notebook 4: Unsupervised Clustering", "scripts/generate_notebook_4.py"),
+        ("Part 1: Exploratory Data Analysis & Profile Similarity", "scripts/generate_notebook_1.py"),
+        ("Part 2: Preprocessing, Dimensionality Reduction & Data Warehouse", "scripts/generate_notebook_2.py"),
+        ("Part 3: Income Classification & Association Rule Mining", "scripts/generate_notebook_3.py"),
+        ("Part 4: Unsupervised Learning & Population Segmentation", "scripts/generate_notebook_4.py"),
     ]
 
     total_start = time.time()
@@ -46,7 +46,7 @@ def main():
                 print(f"    {lines[-1]}")
 
     print("\n" + "=" * 80)
-    print("ALL 4 NOTEBOOKS SUCCESSFULLY EXECUTED AND VERIFIED!")
+    print("ALL FOUR ANALYSIS NOTEBOOKS EXECUTED SUCCESSFULLY!")
     print(f"Total pipeline execution time: {time.time()-total_start:.2f}s")
     print("=" * 80)
 

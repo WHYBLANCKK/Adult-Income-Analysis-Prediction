@@ -24,13 +24,13 @@ def build_notebook_1():
     cells = []
 
     # Title & Introduction
-    cells.append(nbf.v4.new_markdown_cell("""# Data Mining & Warehousing (DMW) - Activity 2
-## Notebook 1: Exploratory Data Analysis (EDA) and Profile Similarity Analysis
+    cells.append(nbf.v4.new_markdown_cell("""# Adult Income Analysis & Prediction
+## Part 1: Exploratory Data Analysis & Demographic Profile Similarity
 
 ### Project Overview
-- **Project Name:** `adult-income-mining`
-- **Dataset:** Adult Census Income (1994 US Census Bureau extraction by Ronny Kohavi & Barry Becker)
-- **Problem Statement:** Socioeconomic profiling and income bracket prediction ($>\\$50K$ vs $\\le \\$50K$).
+- **Project:** Adult Income Analysis & Prediction
+- **Dataset:** UCI Adult Census Income Dataset (1994 U.S. Census Bureau extraction by Ronny Kohavi & Barry Becker)
+- **Objective:** Socioeconomic profiling, statistical distribution analysis, anomaly detection, and demographic profile similarity measurement.
 
 ### Notebook Objectives:
 1. **Data Inspection & Integrity:** Load the unaltered dataset files (`adult.data` and `adult.test`) with proper column mapping and missing value resolution.
